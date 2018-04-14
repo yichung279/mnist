@@ -1,1 +1,4 @@
 MNIST_data/
+npy1/
+cifar*
+
