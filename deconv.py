@@ -1,9 +1,75 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from tensorflow.examples.tutorials.mnist import input_data
 import tensorflow as tf
-mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
+import numpy as np
+from glob import glob
+
+global DATA
+global FILENAME
+global BATCH_COUNT
+DATA = np.load('npy1/dataEven_1.npy')
+FILENAME = 'npy1/dataEven_1.npy'
+BATCH_COUNT = 0
+
+def get_next_batch(batch_size, test = False):
+    global DATA
+    global FILENAME
+    global BATCH_COUNT
+    
+    if not test:
+        BATCH_COUNT += 1
+        filename = glob('dataEven_*.npy')
+        filename.sort()
+        # try to do few times of load
+        if filename[(BATCH_COUNT / 500) % 6] == FILENAME:
+            FILENAME = filename[(BATCH_COUNT / 500) % 6]
+            DATA = np.load(FILENAME)
+        
+        np.random.shuffle(DATA)
+    else:
+        filename = glob('dataOdd_*.npy')
+        DATA = np.load(random.choice(filename))
+
+
+    label[]
+    x = []
+    label_holder = [0] * 15
+
+
+    for i in range(batch_size):
+        
+        #label
+        subLabel = []
+        for j in range(DATA.shape[2]):
+            label_holder[DATA[i][0][j]] = 1
+            subLabel.append(label_holder)
+            label_holder[DATA[i][0][j]] = 0
+        label.append(subLabel)
+        
+        #input
+        subX = []
+        chanel1 = DATA[i][1]
+        chanel2 = DATA[i][2]
+        chanel3 = DATA[i][3]
+        subX.append(chanel1)
+        subX.append(chanel2)
+        subX.append(chanel3)
+        x.append(np.transpose(subX))
+        
+
+    label = np.array(label)
+    x = np.array(x)
+
+
+    return [x, label]
+    '''
+    label = data[:][0]
+    chanel1 = data[:][1]
+    chanel2 = data[:][2]
+    chanel3 = data[:][3]
+    '''
+
 
 def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.1)
@@ -25,7 +91,7 @@ def pool_layer(x):
      return tf.nn.max_pool_with_argmax(x, ksize=[1, 2, 2, 1],\
         strides=[1, 2, 2, 1], padding='SAME')
 
-def deconv_layer(x, w_shape, b_shape, name, padding='SAME'):
+def deconv_layer(x, w_shape, b_shape, padding='SAME'):
     w = weight_variable(w_shape)
     b = bias_variable([b_shape])
  
@@ -41,6 +107,7 @@ def unravel_argmax(self, argmax, shape):
     output_list = []
     output_list.append(argmax // (shape[2] * shape[3]))
     output_list.append(argmax % (shape[2] * shape[3]) // shape[3])
+    
     return tf.stack(output_list)
 
 def unpool_layer(self, x, raveled_argmax, out_shape):
@@ -73,10 +140,11 @@ def unpool_layer(self, x, raveled_argmax, out_shape):
     return tf.expand_dims(tf.sparse_tensor_to_dense(tf.sparse_reorder(delta)), 0)
 
 if __name__ == "__mian__":
-    x = tf.placeholder(tf.float32, shape=[None, 288*288])
-    x_image = tf.reshape(x, [-1, 288, 288, 1])
+    x = tf.placeholder(tf.float32, shape=[None, 288*288, 3])
+    y_ = tf.placeholder(tf.float32, shape=[None, 288*288, 15])
+    x_image = tf.reshape(x, [-1, 288, 288, 3])
     
-    conv_1_1 = conv_layer(x_image, [3, 3, 1, 64], 64)
+    conv_1_1 = conv_layer(x_image, [3, 3, 3, 64], 64)
     conv_1_2 = conv_layer(conv_1_1, [3, 3, 64, 64], 64)
     
     pool1, pool1_argmax = pool_layer(conv_1_2)
@@ -137,7 +205,28 @@ if __name__ == "__mian__":
     deconv_1_2 = deconv_layer(unpool1, [3, 3, 64, 64], 64)
     deconv_1_1 = deconv_layer(deconv_1_2, [3, 3, 32, 64], 32)
 
-    result = tf.reshape(deconv_1_1, [1, 288, 288, 1])
+    score = deconv_layer(deconv_1_1, [1, 1, 15, 32], 15)#0(grayscale)~15
+    y_conv = tf.reshape(score, [-1, 15]) 
+   
+    cross_entropy = tf.reduce_mean(\
+            tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_conv))
+    train_step = tf.train.AdamOptimizer(1e-6).minimize(cross_entropy)
 
-
-
+    correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        for i in range(20000):
+            batch = get_next_batch(100)
+            if i % 100 == 0:
+                train_accuracy = accuracy.eval(feed_dict={\
+                        x: batch[0], y_: batch[1]}) #shape:(batch, 288*288, 3),(batch, 288*288, 15)
+                print('step %d, training accuracy %g' % (i, train_accuracy))
+            train_step.run(feed_dict={x: batch[0], y_: batch[1]})
+       
+        x_test, y_test = get_next_batch(500, test = True)
+        print('test accuracy %g' % accuracy.eval(feed_dict={\
+                x: x_test, y_: y_test)
+    
+    
