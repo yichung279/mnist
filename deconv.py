@@ -5,6 +5,10 @@ import tensorflow as tf
 import numpy as np
 from glob import glob
 
+# for run on only cpu
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 global DATA
 global FILENAME
 global BATCH_COUNT
@@ -88,7 +92,7 @@ def conv_layer(x, w_shape, b_shape):
     return tf.nn.relu(conv2d(x, w) + b)
 
 def pool_layer(x):
-     return tf.nn.max_pool_with_argmax(x, ksize=[1, 2, 2, 1],\
+        return tf.nn.max_pool_with_argmax(x, ksize=[1, 2, 2, 1],\
         strides=[1, 2, 2, 1], padding='SAME')
 
 def deconv_layer(x, w_shape, b_shape, padding='SAME'):
