@@ -32,7 +32,7 @@ def get_next_batch(batch_size, test = False):
         DATA = np.load(random.choice(filename))
 
 
-    label[]
+    label = []
     x = []
     label_holder = [0] * 15
 
@@ -217,7 +217,7 @@ if __name__ == "__mian__":
     
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        for i in range(20000):
+        for i in range(2000):
             batch = get_next_batch(100)
             if i % 100 == 0:
                 train_accuracy = accuracy.eval(feed_dict={\
@@ -227,6 +227,4 @@ if __name__ == "__mian__":
        
         x_test, y_test = get_next_batch(500, test = True)
         print('test accuracy %g' % accuracy.eval(feed_dict={\
-                x: x_test, y_: y_test)
-    
-    
+                x: x_test, y_: y_test}))
