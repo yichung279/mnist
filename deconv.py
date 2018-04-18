@@ -139,7 +139,7 @@ def unpool_layer(self, x, raveled_argmax, out_shape):
     delta = tf.SparseTensor(indices, values, tf.to_int64(tf.shape(output)))
     return tf.expand_dims(tf.sparse_tensor_to_dense(tf.sparse_reorder(delta)), 0)
 
-if __name__ == "__mian__":
+if __name__ == "__main__":
     x = tf.placeholder(tf.float32, shape=[None, 288*288, 3])
     y_ = tf.placeholder(tf.float32, shape=[None, 288*288, 15])
     x_image = tf.reshape(x, [-1, 288, 288, 3])
