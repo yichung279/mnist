@@ -82,9 +82,9 @@ def bias_variable(shape):
 def conv2d(x, filte2):
     return tf.nn.conv2d(x, filte2, strides=[1, 1, 1, 1], padding='SAME')
 
-def conv_layer(x, w_shape, x_shape, b):
+def conv_layer(x, w_shape, b_shape):
     w = weight_variable(w_shape)
-    b = bias_variable(b_shape)
+    b = bias_variable([b_shape])
     return tf.nn.relu(conv2d(x, w) + b)
 
 def pool_layer(x):
@@ -103,15 +103,15 @@ def deconv_layer(x, w_shape, b_shape, padding='SAME'):
  get position and put zeros in
 '''
 #!Todo: Here should be trace again
-def unravel_argmax(self, argmax, shape):
+def unravel_argmax(argmax, shape):
     output_list = []
     output_list.append(argmax // (shape[2] * shape[3]))
     output_list.append(argmax % (shape[2] * shape[3]) // shape[3])
     
     return tf.stack(output_list)
 
-def unpool_layer(self, x, raveled_argmax, out_shape):
-    argmax = self.unravel_argmax(raveled_argmax, tf.to_int64(out_shape))
+def unpool_layer(x, raveled_argmax, out_shape):
+    argmax = unravel_argmax(raveled_argmax, tf.to_int64(out_shape))
     output = tf.zeros([out_shape[1], out_shape[2], out_shape[3]])
 
     height = tf.shape(output)[0]
@@ -155,8 +155,8 @@ if __name__ == "__main__":
     pool2, pool2_argmax = pool_layer(conv_2_2)
     
     conv_3_1 = conv_layer(pool2, [3, 3, 128, 256], 256)
-    conv_3_2 = conv_layer(conv_3_1, [3, 3, 128, 256], 256)
-    conv_3_3 = conv_layer(conv_3_2, [3, 3, 128, 256], 256)
+    conv_3_2 = conv_layer(conv_3_1, [3, 3, 256, 256], 256)
+    conv_3_3 = conv_layer(conv_3_2, [3, 3, 256, 256], 256)
     
     pool3, pool3_argmax = pool_layer(conv_3_3)
     
@@ -166,7 +166,7 @@ if __name__ == "__main__":
 
     pool4, pool4_argmax = pool_layer(conv_4_3)
 
-    conv_5_1 = conv_layer(pool4, [3, 3, 256, 512], 512)
+    conv_5_1 = conv_layer(pool4, [3, 3, 512, 512], 512)
     conv_5_2 = conv_layer(conv_5_1, [3, 3, 512, 512], 512)
     conv_5_3 = conv_layer(conv_5_2, [3, 3, 512, 512], 512)
 
