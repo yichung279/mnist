@@ -6,8 +6,7 @@ import numpy as np
 from glob import glob
 
 # for run on only cpu
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+gpu = False
 
 global DATA
 global FILENAME
@@ -23,16 +22,16 @@ def get_next_batch(batch_size, test = False):
     
     if not test:
         BATCH_COUNT += 1
-        filename = glob('dataEven_*.npy')
+        filename = glob('npy1/dataEven_*.npy')
         filename.sort()
         # try to do few times of load
-        if filename[(BATCH_COUNT / 500) % 6] == FILENAME:
-            FILENAME = filename[(BATCH_COUNT / 500) % 6]
+        if filename[int(BATCH_COUNT / 500 % 6)] == FILENAME:
+            FILENAME = filename[int(BATCH_COUNT / 500 % 6)]
             DATA = np.load(FILENAME)
         
         np.random.shuffle(DATA)
     else:
-        filename = glob('dataOdd_*.npy')
+        filename = glob('npy1/dataOdd_*.npy')
         DATA = np.load(random.choice(filename))
 
 
@@ -92,8 +91,12 @@ def conv_layer(x, w_shape, b_shape):
     return tf.nn.relu(conv2d(x, w) + b)
 
 def pool_layer(x):
+    if gpu:
         return tf.nn.max_pool_with_argmax(x, ksize=[1, 2, 2, 1],\
-        strides=[1, 2, 2, 1], padding='SAME')
+            strides=[1, 2, 2, 1], padding='SAME')
+    else:
+        return [tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME'), 0]
+
 
 def deconv_layer(x, w_shape, b_shape, padding='SAME'):
     w = weight_variable(w_shape)
@@ -115,33 +118,38 @@ def unravel_argmax(argmax, shape):
     return tf.stack(output_list)
 
 def unpool_layer(x, raveled_argmax, out_shape):
-    argmax = unravel_argmax(raveled_argmax, tf.to_int64(out_shape))
-    output = tf.zeros([out_shape[1], out_shape[2], out_shape[3]])
-
-    height = tf.shape(output)[0]
-    width = tf.shape(output)[1]
-    channels = tf.shape(output)[2]
-
-    t1 = tf.to_int64(tf.range(channels))
-    t1 = tf.tile(t1, [((width + 1) // 2) * ((height + 1) // 2)])
-    t1 = tf.reshape(t1, [-1, channels])
-    t1 = tf.transpose(t1, perm=[1, 0])
-    t1 = tf.reshape(t1, [channels, (height + 1) // 2, (width + 1) // 2, 1])
-
-    t2 = tf.squeeze(argmax)
-    t2 = tf.stack((t2[0], t2[1]), axis=0)
-    t2 = tf.transpose(t2, perm=[3, 1, 2, 0])
-
-    t = tf.concat([t2, t1], 3)
-    indices = tf.reshape(t, [((height + 1) // 2) * ((width + 1) // 2) * channels, 3])
-
-    x1 = tf.squeeze(x)
-    x1 = tf.reshape(x1, [-1, channels])
-    x1 = tf.transpose(x1, perm=[1, 0])
-    values = tf.reshape(x1, [-1])
-
-    delta = tf.SparseTensor(indices, values, tf.to_int64(tf.shape(output)))
-    return tf.expand_dims(tf.sparse_tensor_to_dense(tf.sparse_reorder(delta)), 0)
+    if gpu:
+        argmax = unravel_argmax(raveled_argmax, tf.to_int64(out_shape))
+        output = tf.zeros([out_shape[1], out_shape[2], out_shape[3]])
+ 
+        height = tf.shape(output)[0]
+        width = tf.shape(output)[1]
+        channels = tf.shape(output)[2]
+ 
+        t1 = tf.to_int64(tf.range(channels))
+        t1 = tf.tile(t1, [((width + 1) // 2) * ((height + 1) // 2)])
+        t1 = tf.reshape(t1, [-1, channels])
+        t1 = tf.transpose(t1, perm=[1, 0])
+        t1 = tf.reshape(t1, [channels, (height + 1) // 2, (width + 1) // 2, 1])
+ 
+        t2 = tf.squeeze(argmax)
+        t2 = tf.stack((t2[0], t2[1]), axis=0)
+        t2 = tf.transpose(t2, perm=[3, 1, 2, 0])
+ 
+        t = tf.concat([t2, t1], 3)
+        indices = tf.reshape(t, [((height + 1) // 2) * ((width + 1) // 2) * channels, 3])
+ 
+        x1 = tf.squeeze(x)
+        x1 = tf.reshape(x1, [-1, channels])
+        x1 = tf.transpose(x1, perm=[1, 0])
+        values = tf.reshape(x1, [-1])
+ 
+        delta = tf.SparseTensor(indices, values, tf.to_int64(tf.shape(output)))
+        return tf.expand_dims(tf.sparse_tensor_to_dense(tf.sparse_reorder(delta)), 0)
+    else :
+        out = tf.concat([x, x], 3)
+        out = tf.concat([out, out], 2)
+        return tf.reshape(out, out_shape)
 
 if __name__ == "__main__":
     x = tf.placeholder(tf.float32, shape=[None, 288*288, 3])
@@ -223,7 +231,7 @@ if __name__ == "__main__":
         sess.run(tf.global_variables_initializer())
         for i in range(2000):
             batch = get_next_batch(100)
-            if i % 100 == 0:
+            if i % 10 == 0:
                 train_accuracy = accuracy.eval(feed_dict={\
                         x: batch[0], y_: batch[1]}) #shape:(batch, 288*288, 3),(batch, 288*288, 15)
                 print('step %d, training accuracy %g' % (i, train_accuracy))
