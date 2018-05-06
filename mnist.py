@@ -51,8 +51,8 @@ b2 = tf.Variable(tf.constant([0.1] * 10))
 h1 = tf.nn.relu(x @ w1 + b1)
 output = h1 @ w2 + b2
 
-loss = tf.nn.softmax_cross_entropy_with_logits(logits = output, labels = y)
-
+cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits = output, labels = y)
+loss = tf.reduce_mean(cross_entropy)
 #! Adam v.s. SGD ?
 # Different algorithm.SGD has right direction but slow.
 #! learning rate 0.01 v.s. 0.1 ?
@@ -64,14 +64,16 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
-for i in range(10000):
+for i in range(1):
 
     #! batch size 100 v.s. 256 ? 1 v.s. 10000 ?
     # 1 over fitting 10000 expensive
-    batch_xs, batch_ys = mnist.train.next_batch(256)
+    batch_xs, batch_ys = mnist.train.next_batch(5)
 
     sess.run(train_op, feed_dict = {x: batch_xs, y: batch_ys})
-
     if i % 100 == 0:
+        print('-------------------')
+        print(sess.run(x, feed_dict = {x: batch_xs, y: batch_ys}).shape)
+        print(sess.run(y, feed_dict = {x: batch_xs, y: batch_ys}).shape)
         print(sess.run(accuracy, feed_dict = {x: batch_xs, y: batch_ys}))
         print(sess.run(accuracy, feed_dict = {x: mnist.test.images, y: mnist.test.labels}))
